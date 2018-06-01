@@ -1,0 +1,7 @@
+
+.snakemake/
+*.meme
+config.yaml
+data/
+logs/
+results/
