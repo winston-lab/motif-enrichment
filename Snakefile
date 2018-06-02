@@ -3,99 +3,89 @@
 configfile: "config.yaml"
 
 localrules: make_motif_database,
-    get_peak_sequences,
     fimo,
-    cat_fimo_results,
-    intersect_fimo_results,
+    cat_fimo_motifs,
+    get_overlapping_motifs,
     test_motif_enrichment
 
-ANNOTATIONS = config["annotations"]
-CONDITIONS = [k for k,v in config["comparisons"].items()]
-CONTROLS = [v["control"] for k,v in config["comparisons"].items()]
+COMPARISONS = config["comparisons"]
+
+#get all motif names from motif databases, cleaning nasty characters in some motif names
+MOTIFS = set(subprocess.run(args="meme2meme " + " ".join(config["motif_databases"]) + " | grep -e '^MOTIF' | cut -d ' ' -f2 | sed 's/\//_/g; s/&/_/g; s/{/[/g; s/}/]/g' ", shell=True, stdout=subprocess.PIPE, encoding='utf-8').stdout.split())
 
 rule all:
     input:
-        expand("data/{annotation}_allFIMOresults.tsv", annotation = ANNOTATIONS),
-        expand("results/{condition}-v-{control}/{condition}-v-{control}_motif-enrichment.tsv", zip, condition=CONDITIONS, control=CONTROLS)
+        expand("comparisons/{comparison}/{comparison}_motif-enrichment.svg", comparison=COMPARISONS)
 
 rule make_motif_database:
     input:
-        motif_db = config["motif_databases"],
         fasta = config["genome"]["fasta"],
+        motif_db = config["motif_databases"],
     output:
-        "allmotifs.meme"
+        "motifs/allmotifs.meme"
     log: "logs/make_motif_database.log"
     shell: """
         (meme2meme -bg <(fasta-get-markov {input.fasta}) {input.motif_db} | sed -e 's/\//_/g; s/&/_/g; s/{{/[/g; s/}}/]/g' > {output}) &> {log}
         """
 
-# to avoid 'double-counting' regions that may result e.g. from
-# a poorly called peak where one initiation event is called as
-# two peaks, overlapping (but not book-ended) regions are merged
-# and the qvalue of the most significant peak is kept
-rule get_peak_sequences:
-    input:
-        annotation = lambda wc: ANNOTATIONS[wc.annotation]["path"],
-        chrsizes = config["genome"]["chrsizes"],
-        fasta = config["genome"]["fasta"],
-    output:
-        "data/{annotation}.fa"
-    params:
-        upstr = lambda wc: ANNOTATIONS[wc.annotation]["upstream"],
-        dnstr = lambda wc: ANNOTATIONS[wc.annotation]["dnstream"],
-    log: "logs/get_peak_sequences/get_peak_sequences_{annotation}.log"
-    shell: """
-        (bedtools slop -l {params.upstr} -r {params.dnstr} -s -i {input.annotation} -g {input.chrsizes} | sort -k1,1 -k2,2n | bedtools merge -s -d -1 -c 4,5,6 -o collapse,max,first -i stdin | cut -f1-6 | bedtools getfasta -name+ -s -fi {input.fasta} -bed stdin > {output}) &> {log}
-        """
-
+#run fimo in parallel for each motif
 rule fimo:
     input:
-        fasta = "data/{annotation}.fa",
-        motif_db = "allmotifs.meme"
+        fasta = config["genome"]["fasta"],
+        motif_db = "motifs/allmotifs.meme"
     output:
-        "data/{annotation}_allmotifs.bed"
+        bed = temp("motifs/.{motif}.bed") # a BED6+2 format
     params:
         alpha = config["fimo-pval"],
         find_rc = [] if config["find-revcomp"] else "--norc"
-    log: "logs/fimo/fimo_{annotation}.log"
+    log: "logs/fimo/fimo_{motif}.log"
     shell: """
-        (fimo --bgfile <(fasta-get-markov {input.fasta}) --parse-genomic-coord {params.find_rc} --thresh {params.alpha} --text {input.motif_db} {input.fasta} | awk 'BEGIN{{FS=OFS="\t"}} NR>1 {{print $3, $4, $5+1, $1, -log($8)/log(10), $6, $2, $10}} ' > {output}) &> {log}
+        (fimo --motif {wildcards.motif} --bgfile <(fasta-get-markov {input.fasta}) {params.find_rc} --thresh {params.alpha} --text {input.motif_db} {input.fasta} | awk 'BEGIN{{FS=OFS="\t"}} NR>1 {{print $3, $4-1, $5, $1, -log($8)/log(10), $6, $2, $10}}' > {output.bed}) &> {log}
         """
 
-# NOTE: for a motif to match a region, I require that the entire motif lies within the region.
-# NOTE: the results report every overlap if there are multiple matches in a region.
-#       In the enrichment testing step, region matches are made binary
-# TODO: the making of the regions should really be made into a script to ensure that the
-#       regions in 'get_peak_sequences' are really the same as the regions being intersected
-rule intersect_fimo_results:
+rule cat_fimo_motifs:
     input:
-        annotation = lambda wc: ANNOTATIONS[wc.annotation]["path"],
-        results = "data/{annotation}_allmotifs.bed",
-        chrsizes = config["genome"]["chrsizes"],
-        fasta = config["genome"]["fasta"],
+        bed = expand("motifs/.{motif}.bed", motif=MOTIFS)
     output:
-        "data/{annotation}_allFIMOresults.tsv",
-    params:
-        upstr = lambda wc: ANNOTATIONS[wc.annotation]["upstream"],
-        dnstr = lambda wc: ANNOTATIONS[wc.annotation]["dnstream"],
-        stranded = [] if config["find-revcomp"] else "-s"
-    log: "logs/intersect_fimo_results/intersect_fimo_results-{annotation}.log"
+        bed = "motifs/allmotifs.bed",
+    threads: config["threads"]
     shell: """
-        (bedtools slop -l {params.upstr} -r {params.dnstr} -s -i {input.annotation} -g {input.chrsizes} |  sort -k1,1 -k2,2n | bedtools merge -s -d -1 -c 4,5,6 -o collapse,max,first -i stdin | cut -f1-6 | bedtools intersect -a stdin -b {input.results} {params.stranded} -F 1 -wao | cut -f15 --complement | cat <(echo -e "chrom\tregion_start\tregion_end\tregion_id\tregion_score\tregion_strand\tmotif_chrom\tmotif_start\tmotif_end\tmotif_id\tmotif_logpval\tmotif_strand\tmotif_alt_id\tmatch_sequence") - > {output}) &> {log}
+        cat {input.bed} | sort -k1,1 -k2,2n --parallel={threads} > {output.bed}
+        """
+
+#bedtools intersect regions with fimo motifs
+#0. with the region as reference, extend annotation to upstream and 'downstream' distances
+#1. merge overlapping (but not book-ended) features
+#2. intersect with motif file
+rule get_overlapping_motifs:
+    input:
+        annotation = lambda wc: COMPARISONS[wc.comparison][wc.group]["path"],
+        chrsizes = config["genome"]["chrsizes"],
+        motifs = "motifs/allmotifs.bed"
+    output:
+        "comparisons/{comparison}/{comparison}_{group}_allFIMOresults.tsv.gz"
+    params:
+        upstr = lambda wc: COMPARISONS[wc.comparison][wc.group]["upstream"],
+        dnstr = lambda wc: COMPARISONS[wc.comparison][wc.group]["dnstream"],
+    log: "logs/get_overlapping_motifs/get_overlapping_motifs-{comparison}-{group}.log"
+    shell: """
+        (cut -f1-6 {input.annotation} | bedtools slop -l {params.upstr} -r {params.dnstr} -s -i stdin -g {input.chrsizes} | sort -k1,1 -k2,2n | bedtools merge -s -d -1 -c 4,5,6 -o collapse,max,first -i stdin | sort -k1,1 -k2,2n | bedtools intersect -a stdin -b {input.motifs} -sorted -F 1 -wao | cut -f15 --complement | cat <(echo -e "chrom\tregion_start\tregion_end\tregion_id\tregion_score\tregion_strand\tmotif_chrom\tmotif_start\tmotif_end\tmotif_id\tmotif_logpval\tmotif_strand\tmotif_alt_id\tmatch_sequence") - | pigz -f > {output}) &> {log}
         """
 
 rule test_motif_enrichment:
     input:
-        fimo_pos = "data/{condition}_allFIMOresults.tsv",
-        fimo_neg = "data/{control}_allFIMOresults.tsv",
+        fimo_pos = "comparisons/{comparison}/{comparison}_condition_allFIMOresults.tsv.gz",
+        fimo_neg = "comparisons/{comparison}/{comparison}_control_allFIMOresults.tsv.gz",
     output:
-        tsv = "results/{condition}-v-{control}/{condition}-v-{control}_motif-enrichment.tsv",
-        heatmap = "results/{condition}-v-{control}/{condition}-v-{control}_motif-heatmaps.svg",
-        meta = "results/{condition}-v-{control}/{condition}-v-{control}_motif-metagenes.svg",
-        plot = "results/{condition}-v-{control}/{condition}-v-{control}_motif-enrichment.svg"
+        tsv = "comparisons/{comparison}/{comparison}_motif-enrichment.tsv",
+        plot = "comparisons/{comparison}/{comparison}_motif-enrichment.svg",
+        # heatmap = "results/{condition}-v-{control}/{condition}-v-{control}_motif-heatmaps.svg",
+        # meta = "results/{condition}-v-{control}/{condition}-v-{control}_motif-metagenes.svg",
     params:
-        fimo_pval = config["fimo-pval"],
+        # fimo_pval = config["fimo-pval"],
         fdr_cutoff = config["enrichment-fdr"],
-        upstream = lambda wc: config["comparisons"][wc.condition]["upstream"]
+        cond_label = lambda wc: COMPARISONS[wc.comparison]["condition"]["label"],
+        ctrl_label = lambda wc: COMPARISONS[wc.comparison]["control"]["label"],
+        # upstream = lambda wc: config["comparisons"][wc.condition]["upstream"]
     script: "scripts/motif_enrichment.R"
 
