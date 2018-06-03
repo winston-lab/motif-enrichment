@@ -3,10 +3,6 @@
 configfile: "config.yaml"
 
 localrules: make_motif_database,
-    fimo,
-    cat_fimo_motifs,
-    get_overlapping_motifs,
-    test_motif_enrichment
 
 COMPARISONS = config["comparisons"]
 
@@ -82,7 +78,6 @@ rule test_motif_enrichment:
         # heatmap = "results/{condition}-v-{control}/{condition}-v-{control}_motif-heatmaps.svg",
         # meta = "results/{condition}-v-{control}/{condition}-v-{control}_motif-metagenes.svg",
     params:
-        # fimo_pval = config["fimo-pval"],
         fdr_cutoff = config["enrichment-fdr"],
         cond_label = lambda wc: COMPARISONS[wc.comparison]["condition"]["label"],
         ctrl_label = lambda wc: COMPARISONS[wc.comparison]["control"]["label"],
