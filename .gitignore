@@ -2,6 +2,11 @@
 .snakemake/
 *.meme
 config.yaml
-logs/
+logs/*
+logs/cluster/*
 motifs/
 comparisons
+
+!logs/.gitkeep
+!logs/cluster/
+!logs/cluster/.gitkeep
