@@ -1,0 +1,42 @@
+# motif enrichment configuration file
+#
+# relative paths are okay
+#
+
+genome:
+    fasta: ../genome/S_cerevisiae.R64-2-1.fa # path to fasta
+
+motif_databases:
+    - artificial_TATA_motif.meme # paths to motif databases in MEME format
+
+find-revcomp: False # [True|False] Count the reverse complement of the motif as a hit?
+fimo-pval: 0.0006 # [FLOAT in (0,1)] p-value threshold for FIMO
+enrichment-fdr: 0.01 # [FLOAT in (0,1)] false discovery rate for Fisher's exact test of enrichment
+
+# comparison metadata
+comparisons:
+    all-genic-v-random: # [STRING] name of comparison
+        condition:
+            label: all genic TSSs # [STRING] label for condition regions
+            path: ../tss-seq/diff_exp/spt6-1004-37C-v-WT-37C/spikenorm/genic/spt6-1004-37C-v-WT-37C_tss-seq-spikenorm-diffexp-results-genic-all-summits.bed # path to condition annotation in BED6 format
+            upstream: 200 # [INT] nucleotides upstream of annotation to search
+            dnstream: 0 # [INT] nucleotides downstream of annotation to search
+        control:
+            label: random # [STRING] label for control regions
+            path: ../genome/annotations/Scer_random_L1_N6000.bed # path to control annotation in BED6 format
+            upstream: 200 # [INT] nucleotides upstream of annotation to search
+            dnstream: 0 # [INT] nucleotides downstream of annotation to search
+    all-intragenic-v-random:
+        condition:
+            label: all spt6 intragenic
+            path: ../tss-seq/diff_exp/spt6-1004-37C-v-WT-37C/spikenorm/intragenic/spt6-1004-37C-v-WT-37C_tss-seq-spikenorm-diffexp-results-intragenic-up-summits.bed
+            upstream: 200
+            dnstream: 0
+        control:
+            label: random
+            path: ../genome/annotations/Scer_random_L1_N6000.bed
+            upstream: 200
+            dnstream: 0
+
+# max threads to use when running locally
+threads: 2 # [INT]
