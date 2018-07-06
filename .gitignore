@@ -6,6 +6,8 @@ logs/*
 logs/cluster/*
 motifs/
 comparisons
+snakemake.err
+snakemake.log
 
 !logs/.gitkeep
 !logs/cluster/
