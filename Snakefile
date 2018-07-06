@@ -9,6 +9,9 @@ COMPARISONS = config["comparisons"]
 #get all motif names from motif databases, cleaning nasty characters in some motif names
 MOTIFS = set(subprocess.run(args="meme2meme " + " ".join(config["motif_databases"]) + " | grep -e '^MOTIF' | cut -d ' ' -f2 | sed 's/\//_/g; s/&/_/g; s/{/[/g; s/}/]/g' ", shell=True, stdout=subprocess.PIPE, encoding='utf-8').stdout.split())
 
+onsuccess:
+    shell("(./mogrify.sh) > mogrify.log")
+
 rule all:
     input:
         expand("comparisons/{comparison}/{comparison}_motif-enrichment.svg", comparison=COMPARISONS)
