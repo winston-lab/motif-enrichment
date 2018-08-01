@@ -9,6 +9,7 @@ comparisons
 snakemake.err
 snakemake.log
 mogrify.log
+Rplots.pdf
 
 !logs/.gitkeep
 !logs/cluster/
