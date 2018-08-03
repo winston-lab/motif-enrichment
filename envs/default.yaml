@@ -9,7 +9,7 @@ channels:
     - nodefaults
 
 dependencies:
-    - snakemake=5.1.5
+    - snakemake=5.2.0
     - gawk=4.2.1
     - sed=4.4
     - pigz=2.3.4
@@ -22,6 +22,7 @@ dependencies:
     - ucsc-bedgraphtobigwig=332
     - meme=4.12.0
     - fastqc=0.11.7
+    - weblogo=2.8.2
     - r-argparse=1.0.4
     - r-tidyverse=1.1.1
     - r-stringi=1.1.7
