@@ -10,6 +10,7 @@ snakemake.err
 snakemake.log
 mogrify.log
 Rplots.pdf
+.*.swp
 
 !logs/.gitkeep
 !logs/cluster/

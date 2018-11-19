@@ -1,15 +1,15 @@
 __default__:
     queue : "short"
-    time : 60
+    time : 10
     n : 1
-    mem : 2000
+    mem : 200
     name : "{rule}.{wildcards}"
     log : "logs/cluster/{rule}.{wildcards}.log"
     err : "logs/cluster/{rule}.{wildcards}.err"
 
 fimo:
-    time: 3
-    mem: 400M
+    time: 1
+    mem: 2M
 
 cat_fimo_motifs:
     time: 30
@@ -17,10 +17,10 @@ cat_fimo_motifs:
     mem: 2000
 
 get_overlapping_motifs:
-    time: 4
-    mem: 400M
+    time: 2
+    mem: 1
 
 test_motif_enrichment:
-    time: 30
-    mem: 8000
+    time: 2
+    mem: 250
 
