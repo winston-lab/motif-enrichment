@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+from math import log10
+
 configfile: "config.yaml"
 
 localrules: make_motif_database,
@@ -81,7 +83,7 @@ rule test_motif_enrichment:
         # heatmap = "results/{condition}-v-{control}/{condition}-v-{control}_motif-heatmaps.svg",
         # meta = "results/{condition}-v-{control}/{condition}-v-{control}_motif-metagenes.svg",
     params:
-        fdr_cutoff = config["enrichment-fdr"],
+        fdr_cutoff = -log10(config["enrichment-fdr"]),
         cond_label = lambda wc: COMPARISONS[wc.comparison]["condition"]["label"],
         ctrl_label = lambda wc: COMPARISONS[wc.comparison]["control"]["label"],
         # upstream = lambda wc: config["comparisons"][wc.condition]["upstream"]
