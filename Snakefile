@@ -24,7 +24,8 @@ rule make_motif_database:
         motif_db = config["motif_databases"],
     output:
         "motifs/allmotifs.meme"
-    log: "logs/make_motif_database.log"
+    log:
+        "logs/make_motif_database.log"
     shell: """
         (meme2meme -bg <(fasta-get-markov {input.fasta}) {input.motif_db} | sed -e 's/\//_/g; s/&/_/g; s/{{/[/g; s/}}/]/g' > {output}) &> {log}
         """
@@ -39,7 +40,8 @@ rule fimo:
     params:
         alpha = config["fimo-pval"],
         find_rc = [] if config["find-revcomp"] else "--norc"
-    log: "logs/fimo/fimo_{motif}.log"
+    log:
+        "logs/fimo/fimo_{motif}.log"
     shell: """
         (fimo --motif {wildcards.motif} --bgfile <(fasta-get-markov {input.fasta}) {params.find_rc} --thresh {params.alpha} --text {input.motif_db} {input.fasta} | awk 'BEGIN{{FS=OFS="\t"}} NR>1 {{print $3, $4-1, $5, $1, -log($8)/log(10), $6, $2, $10}}' > {output.bed}) &> {log}
         """
@@ -68,7 +70,8 @@ rule get_overlapping_motifs:
     params:
         upstr = lambda wc: COMPARISONS[wc.comparison][wc.group]["upstream"],
         dnstr = lambda wc: COMPARISONS[wc.comparison][wc.group]["dnstream"],
-    log: "logs/get_overlapping_motifs/get_overlapping_motifs-{comparison}-{group}.log"
+    log:
+        "logs/get_overlapping_motifs/get_overlapping_motifs-{comparison}-{group}.log"
     shell: """
         (cut -f1-6 {input.annotation} | bedtools slop -l {params.upstr} -r {params.dnstr} -s -i stdin -g <(faidx {input.fasta} -i chromsizes) | sort -k1,1 -k2,2n | bedtools merge -s -d -1 -c 4,5,6 -o collapse,max,first -i stdin | sort -k1,1 -k2,2n | bedtools intersect -a stdin -b {input.motifs} -sorted -F 1 -wao | cut -f15 --complement | cat <(echo -e "chrom\tregion_start\tregion_end\tregion_id\tregion_score\tregion_strand\tmotif_chrom\tmotif_start\tmotif_end\tmotif_id\tmotif_logpval\tmotif_strand\tmotif_alt_id\tmatch_sequence") - | pigz -f > {output}) &> {log}
         """
@@ -87,6 +90,8 @@ rule test_motif_enrichment:
         cond_label = lambda wc: COMPARISONS[wc.comparison]["condition"]["label"],
         ctrl_label = lambda wc: COMPARISONS[wc.comparison]["control"]["label"],
         # upstream = lambda wc: config["comparisons"][wc.condition]["upstream"]
-    conda: "envs/tidyverse.yaml"
-    script: "scripts/motif_enrichment.R"
+    conda:
+        "envs/tidyverse.yaml"
+    script:
+        "scripts/motif_enrichment.R"
 
