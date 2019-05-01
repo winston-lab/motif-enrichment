@@ -16,7 +16,11 @@ cat_fimo_motifs:
     n: 4
     mem: 2000
 
-get_overlapping_motifs:
+get_motifs_merged:
+    time: 2
+    mem: 1
+
+get_motifs_unmerged:
     time: 2
     mem: 1
 
