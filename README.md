@@ -39,7 +39,7 @@ git clone https://github.com/winston-lab/motif-enrichment.git
 cd motif-enrichment
 
 # create the snakemake_default environment
-conda env create -v -f envs/default.yaml
+conda env create -v -f envs/snakemake_default.yaml
 
 # activate the environment
 source activate snakemake_default
