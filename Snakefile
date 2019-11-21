@@ -16,8 +16,9 @@ onsuccess:
 
 rule all:
     input:
-        expand("comparisons/{comparison}/{comparison}_{group}_unmergedFIMOresults.tsv.gz", comparison=COMPARISONS, group=["condition", "control"]),
-        expand("comparisons/{comparison}/{comparison}_motif-enrichment.svg", comparison=COMPARISONS)
+        "motifs/allmotifs.bed",
+        expand("comparisons/{comparison}/{comparison}_{group}_unmergedFIMOresults.tsv.gz", comparison=COMPARISONS, group=["condition", "control"]) if COMPARISONS else [],
+        expand("comparisons/{comparison}/{comparison}_motif-enrichment.svg", comparison=COMPARISONS) if COMPARISONS else []
 
 rule make_motif_database:
     input:
